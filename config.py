@@ -21,19 +21,51 @@ class Config:
     REQUEST_TIMEOUT = int(os.getenv('REQUEST_TIMEOUT', 90))
     RATE_LIMIT_DELAY = int(os.getenv('RATE_LIMIT_DELAY', 2))
     
-    # Headers
+    # ============ UPDATED: Comprehensive Browser Headers ============
     HEADERS = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-GB,en;q=0.9,en-US;q=0.8',
+        # Standard Browser Headers
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,en-GB;q=0.8',
         'Accept-Encoding': 'gzip, deflate, br',
-        'Origin': 'https://frame.y2meta-uk.com',
-        'Referer': 'https://frame.y2meta-uk.com/',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        
+        # Security & Fetch Headers
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Sec-GPC': '1',
+        
+        # Cache & Performance
+        'Cache-Control': 'max-age=0',
+        'Pragma': 'no-cache',
+        
+        # Additional Headers for API Requests
+        'Origin': 'https://cnv.cx',
+        'Referer': 'https://cnv.cx/',
+        'DNT': '1',
+        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+    }
+    
+    # Headers specifically for JSON API calls
+    JSON_HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Content-Type': 'application/json',
+        'Origin': 'https://cnv.cx',
+        'Referer': 'https://cnv.cx/',
         'Sec-Fetch-Dest': 'empty',
         'Sec-Fetch-Mode': 'cors',
-        'Sec-Fetch-Site': 'cross-site',
-        'Sec-GPC': '1',
-        'Connection': 'keep-alive'
+        'Sec-Fetch-Site': 'same-origin',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
     }
 
 config = Config()
