@@ -1,4 +1,4 @@
-# api/index.py - Vercel Serverless Function
+# api/index.py - COMPLETE FIXED VERSION
 import os
 import sys
 import logging
@@ -10,12 +10,21 @@ from flask import Flask, request, jsonify, Response, stream_with_context
 from flask_cors import CORS
 from config import config
 from auth import require_api_key
-from utils import extract_video_id, detect_content_type, format_file_size
+
+# ✅ FIX: Import ALL needed functions
+from utils import (
+    extract_video_id,
+    extract_playlist_id,
+    detect_content_type,
+    format_file_size
+)
+
 from youtube_api import (
     get_video_metadata,
     convert_video,
     get_file_size_with_stream
 )
+
 from playlist_handler import (
     get_playlist_info,
     extract_videos_from_playlist_url,
@@ -146,7 +155,7 @@ def download():
         
         input_value = data['videoId']
         
-        # Check if it's a playlist
+        # ✅ FIX: extract_playlist_id is now imported
         playlist_id = extract_playlist_id(input_value)
         if playlist_id:
             return jsonify({
