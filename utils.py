@@ -2,18 +2,13 @@
 import re
 
 def extract_video_id(url_or_id):
-    """
-    Extract YouTube video ID from URL or return as-is
-    Supports: youtube.com/watch?v=, youtu.be/, youtube.com/shorts/
-    """
+    """Extract YouTube video ID from URL or return as-is"""
     if not url_or_id:
         return None
     
-    # If it's already just the ID (11 characters)
     if re.match(r'^[a-zA-Z0-9_-]{11}$', url_or_id):
         return url_or_id
     
-    # Try to extract from URL
     patterns = [
         r'(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})',
         r'youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})'
@@ -26,41 +21,26 @@ def extract_video_id(url_or_id):
     return None
 
 def extract_playlist_id(url):
-    """
-    Extract YouTube playlist ID from URL
-    Supports: youtube.com/playlist?list=, &list= in any URL
-    """
+    """Extract YouTube playlist ID from URL"""
     if not url:
         return None
     
-    # Check for list parameter in URL
     match = re.search(r'[&?]list=([a-zA-Z0-9_-]+)', url)
     if match:
         playlist_id = match.group(1)
-        # Valid playlist IDs usually start with PL, OL, RD, UU, FL, LL
         if playlist_id.startswith(('PL', 'OL', 'RD', 'UU', 'FL', 'LL')):
             return playlist_id
     
-    # Check if the entire input is a playlist ID
     if re.match(r'^(PL|OL|RD|UU|FL|LL)[a-zA-Z0-9_-]+$', url):
         return url
     
     return None
 
 def detect_content_type(input_value):
-    """
-    Detect what type of YouTube content the input is
-    Returns: {
-        'type': 'video' | 'playlist' | 'short' | 'unknown',
-        'videoId': str or None,
-        'playlistId': str or None,
-        'isPlaylist': bool
-    }
-    """
+    """Detect what type of YouTube content the input is"""
     if not input_value:
         return {'type': 'unknown', 'isPlaylist': False}
     
-    # Check for shorts
     if 'shorts/' in input_value:
         video_id = extract_video_id(input_value)
         if video_id:
@@ -72,10 +52,8 @@ def detect_content_type(input_value):
                 'message': f'Detected YouTube Short: {video_id}'
             }
     
-    # Check for playlist
     playlist_id = extract_playlist_id(input_value)
     if playlist_id:
-        # Check if it also has a video ID (video within playlist)
         video_id = extract_video_id(input_value)
         return {
             'type': 'playlist',
@@ -87,7 +65,6 @@ def detect_content_type(input_value):
             'videoIdInPlaylist': video_id
         }
     
-    # Check for video
     video_id = extract_video_id(input_value)
     if video_id:
         return {
