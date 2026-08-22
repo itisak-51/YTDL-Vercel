@@ -1,0 +1,23 @@
+# render.yaml
+services:
+  - type: web
+    name: ytdl-api
+    runtime: python
+    repo: https://github.com/yourusername/ytdl-render
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: API_KEY
+        sync: false
+      - key: API_KEY_NAME
+        value: X-API-Key
+      - key: BASE_URL
+        value: https://cnv.cx/v2
+      - key: REQUEST_TIMEOUT
+        value: 90
+      - key: RATE_LIMIT_DELAY
+        value: 2
+      - key: RENDER
+        value: true
