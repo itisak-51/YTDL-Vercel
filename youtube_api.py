@@ -2,6 +2,7 @@
 import requests
 import re
 import logging
+import time
 from config import config
 from utils import format_file_size
 
@@ -11,7 +12,17 @@ def get_video_metadata(video_id):
     """Get video metadata using YouTube oEmbed API"""
     try:
         oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
-        resp = requests.get(oembed_url, timeout=10)
+        
+        # Use the JSON headers for this request
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+        }
+        
+        resp = requests.get(oembed_url, headers=headers, timeout=10)
         resp.raise_for_status()
         data = resp.json()
         
@@ -33,24 +44,111 @@ def get_video_metadata(video_id):
         return {"success": False, "error": str(e)}
 
 def get_conversion_key(video_id):
-    """Get the authentication key for conversion"""
+    """
+    Step 1: Get the authentication key for conversion
+    Uses full browser headers to avoid 403 errors
+    """
     try:
+        url = f"{config.BASE_URL}/sanity/key"
+        params = {"id": video_id}
+        
+        # Use the full browser headers
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9,en-GB;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Origin': 'https://cnv.cx',
+            'Referer': 'https://cnv.cx/',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'cross-site',
+            'Sec-GPC': '1',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'DNT': '1',
+        }
+        
+        logger.info(f"Requesting key for video: {video_id}")
+        
         resp = requests.get(
-            f"{config.BASE_URL}/sanity/key", 
-            params={"id": video_id}, 
-            headers=config.HEADERS,
+            url,
+            params=params,
+            headers=headers,
             timeout=30
         )
         resp.raise_for_status()
         return resp.json().get("key")
+        
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            logger.error(f"403 Forbidden - Blocked by API for video: {video_id}")
+            # Try with alternative headers
+            return get_conversion_key_alternative(video_id)
+        logger.error(f"HTTP Error: {str(e)}")
+        return {"error": f"HTTP Error: {e}"}
     except Exception as e:
+        logger.error(f"Error getting conversion key: {str(e)}")
+        return {"error": str(e)}
+
+def get_conversion_key_alternative(video_id):
+    """
+    Alternative method to get conversion key with different headers
+    Sometimes helps bypass 403 errors
+    """
+    try:
+        url = f"{config.BASE_URL}/sanity/key"
+        params = {"id": video_id}
+        
+        # Try with mobile user-agent and different headers
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Origin': 'https://cnv.cx',
+            'Referer': 'https://cnv.cx/',
+            'Connection': 'keep-alive',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'cross-site',
+        }
+        
+        logger.info(f"Attempting alternative key fetch for video: {video_id}")
+        
+        resp = requests.get(
+            url,
+            params=params,
+            headers=headers,
+            timeout=30
+        )
+        resp.raise_for_status()
+        return resp.json().get("key")
+        
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            logger.error(f"Alternative key fetch also got 403 for video: {video_id}")
+            return {"error": "Access blocked. The service is currently unavailable from this location."}
+        return {"error": f"HTTP Error: {e}"}
+    except Exception as e:
+        logger.error(f"Alternative key fetch failed: {str(e)}")
         return {"error": str(e)}
 
 def convert_video(video_id, quality="720", format="mp4"):
-    """Convert the video and get download URL"""
+    """Step 2: Convert the video and get download URL"""
     key_result = get_conversion_key(video_id)
+    
     if isinstance(key_result, dict) and "error" in key_result:
-        return key_result
+        # Try the alternative key fetch if the first one failed
+        logger.info("Attempting alternative key fetch...")
+        key_result = get_conversion_key_alternative(video_id)
+        if isinstance(key_result, dict) and "error" in key_result:
+            return key_result
+    
+    key = key_result
     
     data = {
         "link": f"https://youtu.be/{video_id}",
@@ -61,11 +159,29 @@ def convert_video(video_id, quality="720", format="mp4"):
         "vCodec": "h264"
     }
     
-    headers = config.HEADERS.copy()
-    headers["key"] = key_result
-    headers["Content-Type"] = "application/x-www-form-urlencoded"
+    # Use full browser headers with the key
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9,en-GB;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Origin': 'https://cnv.cx',
+        'Referer': 'https://cnv.cx/',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site',
+        'Sec-GPC': '1',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'DNT': '1',
+        'key': key
+    }
     
     try:
+        logger.info(f"Converting video {video_id} with quality {quality}")
+        
         resp = requests.post(
             f"{config.BASE_URL}/converter", 
             data=data, 
@@ -81,14 +197,31 @@ def convert_video(video_id, quality="720", format="mp4"):
             "filename": result.get("filename", f"youtube_{video_id}.{format}"),
             "status": result.get("status", "unknown")
         }
+        
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            logger.error(f"403 Forbidden on conversion for video: {video_id}")
+            return {"error": "Access blocked. The conversion service is currently unavailable from this location."}
+        logger.error(f"HTTP Error on conversion: {str(e)}")
+        return {"error": f"HTTP Error: {e}"}
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout on conversion for video: {video_id}")
+        return {"error": "Request timed out. Conversion taking too long."}
     except Exception as e:
+        logger.error(f"Conversion failed: {str(e)}")
         return {"error": str(e)}
 
 def get_file_size_with_stream(download_url):
     """Get file size using range request"""
     try:
-        headers = config.HEADERS.copy()
-        headers['Range'] = 'bytes=0-1023'
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Connection': 'keep-alive',
+            'Range': 'bytes=0-1023'
+        }
         
         resp = requests.get(
             download_url,
