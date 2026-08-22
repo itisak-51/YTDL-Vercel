@@ -1,4 +1,3 @@
-# utils.py
 import re
 
 def extract_video_id(url_or_id):
@@ -83,20 +82,20 @@ def detect_content_type(input_value):
         'message': 'Could not detect YouTube content'
     }
 
-def format_file_size(bytes):
+def format_file_size(bytes_val):
     """Format file size in human readable format"""
-    if not bytes:
+    if not bytes_val:
         return "Unknown"
     try:
-        bytes = int(bytes)
-        if bytes == 0:
+        bytes_val = int(bytes_val)
+        if bytes_val == 0:
             return "0 B"
         k = 1024
         sizes = ['B', 'KB', 'MB', 'GB', 'TB']
         i = 0
-        while bytes >= k and i < len(sizes) - 1:
-            bytes /= k
+        while bytes_val >= k and i < len(sizes) - 1:
+            bytes_val /= k
             i += 1
-        return f"{bytes:.2f} {sizes[i]}"
+        return f"{bytes_val:.2f} {sizes[i]}"
     except:
         return "Unknown"
