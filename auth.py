@@ -1,4 +1,3 @@
-# auth.py
 from functools import wraps
 from flask import request, jsonify
 from config import config
