@@ -1,4 +1,3 @@
-# youtube_api.py
 import requests
 import re
 import logging
@@ -11,7 +10,6 @@ def get_video_metadata(video_id):
     """Get video metadata using YouTube oEmbed API"""
     try:
         oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
-        
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'application/json',
@@ -19,7 +17,6 @@ def get_video_metadata(video_id):
             'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
         }
-        
         resp = requests.get(oembed_url, headers=headers, timeout=10)
         resp.raise_for_status()
         data = resp.json()
@@ -46,7 +43,6 @@ def get_conversion_key(video_id):
     try:
         url = f"{config.BASE_URL}/sanity/key"
         params = {"id": video_id}
-        
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'application/json, text/plain, */*',
@@ -63,26 +59,15 @@ def get_conversion_key(video_id):
             'Pragma': 'no-cache',
             'DNT': '1',
         }
-        
         logger.info(f"Requesting key for video: {video_id}")
-        
-        resp = requests.get(
-            url,
-            params=params,
-            headers=headers,
-            timeout=30
-        )
+        resp = requests.get(url, params=params, headers=headers, timeout=30)
         resp.raise_for_status()
         return resp.json().get("key")
-        
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 403:
-            logger.error(f"403 Forbidden for video: {video_id}")
             return get_conversion_key_alternative(video_id)
-        logger.error(f"HTTP Error: {str(e)}")
         return {"error": f"HTTP Error: {e}"}
     except Exception as e:
-        logger.error(f"Error getting conversion key: {str(e)}")
         return {"error": str(e)}
 
 def get_conversion_key_alternative(video_id):
@@ -90,7 +75,6 @@ def get_conversion_key_alternative(video_id):
     try:
         url = f"{config.BASE_URL}/sanity/key"
         params = {"id": video_id}
-        
         headers = {
             'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
             'Accept': 'application/json, text/plain, */*',
@@ -105,47 +89,33 @@ def get_conversion_key_alternative(video_id):
             'Sec-Fetch-Mode': 'cors',
             'Sec-Fetch-Site': 'cross-site',
         }
-        
-        logger.info(f"Attempting alternative key fetch for video: {video_id}")
-        
-        resp = requests.get(
-            url,
-            params=params,
-            headers=headers,
-            timeout=30
-        )
+        resp = requests.get(url, params=params, headers=headers, timeout=30)
         resp.raise_for_status()
         return resp.json().get("key")
-        
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 403:
-            logger.error(f"Alternative key fetch also got 403 for video: {video_id}")
             return {"error": "Access blocked. The service is currently unavailable from this location."}
         return {"error": f"HTTP Error: {e}"}
     except Exception as e:
-        logger.error(f"Alternative key fetch failed: {str(e)}")
         return {"error": str(e)}
 
-def convert_video(video_id, quality="720", format="mp4"):
+def convert_video(video_id, quality="720", format_type="mp4"):
     """Convert the video and get download URL"""
     key_result = get_conversion_key(video_id)
-    
     if isinstance(key_result, dict) and "error" in key_result:
         key_result = get_conversion_key_alternative(video_id)
         if isinstance(key_result, dict) and "error" in key_result:
             return key_result
     
     key = key_result
-    
     data = {
         "link": f"https://youtu.be/{video_id}",
-        "format": format,
-        "audioBitrate": "128" if format == "mp3" else "128",
+        "format": format_type,
+        "audioBitrate": "128" if format_type == "mp3" else "128",
         "videoQuality": quality,
         "filenameStyle": "pretty",
         "vCodec": "h264"
     }
-    
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'application/json, text/plain, */*',
@@ -164,37 +134,23 @@ def convert_video(video_id, quality="720", format="mp4"):
         'DNT': '1',
         'key': key
     }
-    
     try:
-        logger.info(f"Converting video {video_id} with quality {quality}")
-        
-        resp = requests.post(
-            f"{config.BASE_URL}/converter", 
-            data=data, 
-            headers=headers,
-            timeout=config.REQUEST_TIMEOUT
-        )
+        resp = requests.post(f"{config.BASE_URL}/converter", data=data, headers=headers, timeout=config.REQUEST_TIMEOUT)
         resp.raise_for_status()
         result = resp.json()
-        
         return {
             "success": True,
             "downloadUrl": result.get("url"),
-            "filename": result.get("filename", f"youtube_{video_id}.{format}"),
+            "filename": result.get("filename", f"youtube_{video_id}.{format_type}"),
             "status": result.get("status", "unknown")
         }
-        
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 403:
-            logger.error(f"403 Forbidden on conversion for video: {video_id}")
             return {"error": "Access blocked. The conversion service is currently unavailable from this location."}
-        logger.error(f"HTTP Error on conversion: {str(e)}")
         return {"error": f"HTTP Error: {e}"}
     except requests.exceptions.Timeout:
-        logger.error(f"Timeout on conversion for video: {video_id}")
         return {"error": "Request timed out. Conversion taking too long."}
     except Exception as e:
-        logger.error(f"Conversion failed: {str(e)}")
         return {"error": str(e)}
 
 def get_file_size_with_stream(download_url):
@@ -208,15 +164,7 @@ def get_file_size_with_stream(download_url):
             'Connection': 'keep-alive',
             'Range': 'bytes=0-1023'
         }
-        
-        resp = requests.get(
-            download_url,
-            headers=headers,
-            stream=True,
-            timeout=15,
-            allow_redirects=True
-        )
-        
+        resp = requests.get(download_url, headers=headers, stream=True, timeout=15, allow_redirects=True)
         content_range = resp.headers.get('content-range')
         if content_range:
             match = re.search(r'/(\d+)$', content_range)
